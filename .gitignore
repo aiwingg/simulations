@@ -16,8 +16,8 @@ logs/
 # Results
 results/
 *.csv
-*.json
-*.ndjson
+results/*.json
+results/*.ndjson
 
 # Python
 __pycache__/

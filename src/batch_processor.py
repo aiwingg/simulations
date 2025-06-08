@@ -231,11 +231,11 @@ class BatchProcessor:
                         'scenario': scenario_name,
                         'session_id': conversation_result.get('session_id'),
                         'status': 'completed',
-                        'total_turns': conversation_result.get('total_turns', 0),
-                        'duration_seconds': conversation_result.get('duration_seconds', 0),
-                        'score': evaluation_result.get('score', 1),
-                        'comment': evaluation_result.get('comment', ''),
-                        'evaluation_status': evaluation_result.get('evaluation_status', 'unknown'),
+                        'total_turns': conversation_result.get('total_turns'),
+                        'duration_seconds': conversation_result.get('duration_seconds'),
+                        'score': evaluation_result.get('score'),
+                        'comment': evaluation_result.get('comment'),
+                        'evaluation_status': evaluation_result.get('evaluation_status'),
                         'start_time': conversation_result.get('start_time'),
                         'end_time': conversation_result.get('end_time')
                     }
@@ -246,16 +246,18 @@ class BatchProcessor:
                         'scenario': scenario_name,
                         'session_id': conversation_result.get('session_id'),
                         'status': 'failed',
-                        'error': conversation_result.get('error', 'Unknown error'),
+                        'error': conversation_result.get('error'),
                         'total_turns': conversation_result.get('total_turns', 0),
-                        'duration_seconds': conversation_result.get('duration_seconds', 0),
                         'score': 1,
                         'comment': f"Разговор не завершен: {conversation_result.get('error', 'неизвестная ошибка')}"
                     }
                 
                 # Update progress
                 if progress_callback:
-                    await progress_callback(batch_id, scenario_index + 1)
+                    if asyncio.iscoroutinefunction(progress_callback):
+                        await progress_callback(batch_id, scenario_index + 1)
+                    else:
+                        progress_callback(batch_id, scenario_index + 1)
                 
                 self.logger.log_info(f"Completed scenario {scenario_index}: {scenario_name}", extra_data={
                     'batch_id': batch_id,

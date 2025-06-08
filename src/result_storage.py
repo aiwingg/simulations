@@ -67,7 +67,7 @@ class ResultStorage:
                     'prompt_version': prompt_version,
                     'score': result.get('score', 1),
                     'comment': result.get('comment', '').replace('\n', ' ').replace('\r', ' '),  # Clean newlines
-                    'turns': result.get('total_turns', 0),  # Map total_turns to turns
+                    'turns': result.get('total_turns', 0),
                     'start_ts': result.get('start_time', ''),
                     'status': result.get('status', 'unknown'),
                     'duration_seconds': result.get('duration_seconds', 0),
@@ -135,13 +135,19 @@ class ResultStorage:
             }
             
             # Turn statistics
-            turns = df['total_turns'].dropna()
-            turn_stats = {
-                'mean': float(turns.mean()) if len(turns) > 0 else 0,
-                'median': float(turns.median()) if len(turns) > 0 else 0,
-                'min': int(turns.min()) if len(turns) > 0 else 0,
-                'max': int(turns.max()) if len(turns) > 0 else 0
-            }
+            turns_column = 'total_turns' if 'total_turns' in df.columns else 'turns'
+            if turns_column in df.columns:
+                turns = df[turns_column].dropna()
+                turn_stats = {
+                    'mean': float(turns.mean()) if len(turns) > 0 else 0,
+                    'median': float(turns.median()) if len(turns) > 0 else 0,
+                    'min': int(turns.min()) if len(turns) > 0 else 0,
+                    'max': int(turns.max()) if len(turns) > 0 else 0
+                }
+            else:
+                turn_stats = {
+                    'mean': 0, 'median': 0, 'min': 0, 'max': 0
+                }
             
             # Duration statistics
             durations = df['duration_seconds'].dropna()
@@ -154,11 +160,21 @@ class ResultStorage:
             }
             
             # Scenario performance
-            scenario_stats = df.groupby('scenario').agg({
+            agg_dict = {
                 'score': ['mean', 'count'],
-                'total_turns': 'mean',
                 'duration_seconds': 'mean'
-            }).round(2).to_dict()
+            }
+            if turns_column in df.columns:
+                agg_dict[turns_column] = 'mean'
+            
+            try:
+                scenario_stats_df = df.groupby('scenario').agg(agg_dict).round(2)
+                # Flatten multi-level columns
+                scenario_stats_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in scenario_stats_df.columns]
+                scenario_stats = scenario_stats_df.to_dict('index')
+            except Exception as e:
+                self.logger.log_error("Failed to calculate scenario performance", exception=e)
+                scenario_stats = {}
             
             summary = {
                 'batch_id': batch_id,
